@@ -1,6 +1,7 @@
 package controllers.api
 
-import domain.model.{Team, TeamNameAlreadyTakenException}
+import com.google.common.base.Optional
+import domain.model._
 import play.api.data._
 import play.api.data.Forms._
 import play.api.libs.json.{JsNumber, JsValue, Json, Writes}
@@ -15,6 +16,10 @@ object Teams extends Controller {
   private[api] case class TeamName(name: String)
   private[api] val teamNameForm: Form[TeamName] =
     Form(mapping("name" -> nonEmptyText)(TeamName.apply)(TeamName.unapply))
+
+  private[api] case class MemberId(memberId: String)
+  private[api] val memberIdForm: Form[MemberId] =
+    Form(mapping("identity" -> nonEmptyText)(MemberId.apply)(MemberId.unapply))
 
   /**
     * Creates a new Team
@@ -51,6 +56,7 @@ object Teams extends Controller {
   }
 
   @Transactional
+  @throws[TeamNameAlreadyTakenException]
   def createNewTeamByName(name: String) = {
     val team = new Team()
     team.name = name
@@ -75,8 +81,32 @@ object Teams extends Controller {
     * This is one of the required endpoints.
     *
     */
-  def addMember(teamId: Long, memberId: String) = Action {
-    NotImplemented[play.twirl.api.Html](views.html.defaultpages.todo())
+  def addMember(teamId: Long) = Action.async(parse.json) { implicit rq: Request[JsValue] =>
+    memberIdForm.bindFromRequest().fold(
+      formWithErrors => {
+        Future.successful(BadRequest(formWithErrors.errorsAsJson))
+      },
+      {
+        case MemberId(memberId) =>
+          (for {
+            _ <- Future(addMemberToTeam(teamId, memberId))
+            json <- membersJson(forId(teamId))
+          } yield Created(json))
+            .recover {
+              case e: NoSuchElementException => BadRequest(Json.obj("error" -> e.getMessage))
+              case NonFatal(e) => InternalServerError(Json.obj("error" -> e.toString))
+            }
+      }
+    )
+  }
+
+  @Transactional
+  @throws[NoSuchElementException]
+  def addMemberToTeam(teamId: Long, memberId: String) = {
+    val team: Team = getTeamByIdFromOpt(teamId)(Team.forId(teamId))
+    val newMember = getFromOpt(s"User with id $memberId cannot be found")(User.forId(memberId))
+    team.members.add(newMember)
+    team.update()
   }
 
   /**
@@ -90,8 +120,14 @@ object Teams extends Controller {
     * This is one of the required endpoints.
     *
     */
-  def getMembers(teamId: Long) = {
-    TODO
+  def getMembers(teamId: Long) = Action.async {
+    (for {
+      json <- membersJson(forId(teamId))
+    } yield Ok(json))
+      .recover {
+        case e: NoSuchElementException => BadRequest(Json.obj("teamId" -> e.getMessage))
+        case NonFatal(e) => InternalServerError(Json.obj("error" -> e.toString))
+      }
   }
 
   /**
@@ -133,16 +169,34 @@ object Teams extends Controller {
     )
   }
 
+  private[api] val memberWrites = new Writes[User] {
+    def writes(u: User): JsValue = Json.obj(
+      "identity" -> u.username,
+      "email" -> u.profile.email,
+      "name" -> s"${u.profile.firstName} ${u.profile.lastName}"
+    )
+  }
+
   private[api] def teamJson(tf: Future[Team]): Future[JsValue] =
     tf.map(Json.toJson(_)(teamWrites))
 
+  private[api] def membersJson(tf: Future[Team]): Future[JsValue] = {
+    implicit val writes = memberWrites
+    import scala.collection.JavaConverters._
+    tf.map(t => Json.toJson(t.members.asScala))
+  }
+
   private[api] def forId(id: Long): Future[Team] =
-    Future(domain.model.Team.forId(id)).map(getFromOptional(s"No team found with id $id"))
+    Future(domain.model.Team.forId(id)).map(getTeamByIdFromOpt(id))
 
   private[api] def forName(name: String): Future[Team] =
-    Future(domain.model.Team.forName(name)).map(getFromOptional(s"No team found with name $name"))
+    Future(domain.model.Team.forName(name)).map(getFromOpt(s"No team found with name $name"))
 
-  private[api] def getFromOptional(errMsg: String)(ot: com.google.common.base.Optional[Team]): Team =
+  private[api] def getTeamByIdFromOpt(id: Long)(teamOpt: Optional[Team]) =
+    getFromOpt(s"No team found with id $id")(teamOpt)
+
+  @throws[NoSuchElementException]
+  private[api] def getFromOpt[T](errMsg: String)(ot: Optional[T]): T =
     if (ot.isPresent) ot.get else throw new NoSuchElementException(errMsg)
 
 }
