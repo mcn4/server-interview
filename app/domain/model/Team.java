@@ -5,8 +5,7 @@ import play.data.format.Formats;
 import play.data.validation.Constraints;
 import play.db.ebean.Model;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
+import javax.persistence.*;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -20,6 +19,12 @@ public class Team extends Model {
     public String name;
 
     @Constraints.Required
+    @ManyToMany
+    @JoinTable(
+        name = "teamMembers",
+        joinColumns={ @JoinColumn(name="teamId", referencedColumnName="id") },
+        inverseJoinColumns={ @JoinColumn(name="memberId", referencedColumnName="username", unique=true) }
+    )
     public Set<User> members = new HashSet<>();
 
     public final static Finder<Long, Team> find = new Finder<>(Long.class, Team.class);

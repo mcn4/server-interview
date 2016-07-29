@@ -172,8 +172,8 @@ object Teams extends Controller {
   private[api] val memberWrites = new Writes[User] {
     def writes(u: User): JsValue = Json.obj(
       "identity" -> u.username,
-      "email" -> u.profile.email,
-      "name" -> s"${u.profile.firstName} ${u.profile.lastName}"
+      "email" -> u.getProfile.email,
+      "name" -> s"${u.getProfile.firstName} ${u.getProfile.lastName}"
     )
   }
 

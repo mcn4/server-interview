@@ -37,6 +37,17 @@ public class User extends Model {
 		}
 	}
 
+	/**
+	 *  Enhancement of direct Ebean field access (enabling lazy loading) is only applied to Java classes, not to Scala.
+	 *  Thus, direct field access from Scala source files (including standard Play templates) does not invoke
+	 *  lazy loading, often resulting in empty (unpopulated) entity fields.
+	 *  To ensure the fields get populated, either (a) manually create getter/setters and call them instead,
+	 *  or (b) ensure the entity is fully populated before accessing the fields.
+     */
+	public Profile getProfile() {
+		return profile;
+	}
+
 	@Embeddable
 	public static class Profile {
 
