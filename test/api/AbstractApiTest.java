@@ -3,13 +3,13 @@ package api;
 import org.junit.*;
 import play.test.*;
 import play.libs.Json;
-import play.libs.WS;
+import play.libs.ws.*;
 
 import static play.test.Helpers.*;
 import static org.fest.assertions.Assertions.*;
 import static org.junit.Assert.*;
 
-import org.codehaus.jackson.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.*;
 
 public class AbstractApiTest {
@@ -19,8 +19,9 @@ public class AbstractApiTest {
 	static final String teamsEndpoint = baseUrl + "teams";
 	static final String projectsEndpoint = baseUrl + "projects";
 	static final String backlogItemsEndpoint = baseUrl + "backlogitems";
+	static final long timeout = 5*1000L;
 
-	static WS.Response createUser(String username) {
+	static WSResponse createUser(String username) {
 		final JsonNode body = Json.toJson(ImmutableMap.of(
 			"username", username,
 			"password", "secret",
@@ -31,46 +32,46 @@ public class AbstractApiTest {
 				"age", 30
 				)
 			));
-		return WS.url(usersEndpoint).post(body).get();
+		return WS.url(usersEndpoint).post(body).get(timeout);
 	}
 
-	static WS.Response getUserProfile(String username) {
-		return WS.url(usersEndpoint + "/" + username + "/profile").get().get();
+	static WSResponse getUserProfile(String username) {
+		return WS.url(usersEndpoint + "/" + username + "/profile").get().get(timeout);
 	}
 
-	static WS.Response updateProfile(String username, String newEmail) {
+	static WSResponse updateProfile(String username, String newEmail) {
 		final JsonNode body = Json.toJson(ImmutableMap.of(
 			"email", newEmail,
 			"firstName", "John",
 			"lastName", "Doe",
 			"age", 30
 			));
-		return WS.url(usersEndpoint + "/" + username + "/profile").put(body).get();
+		return WS.url(usersEndpoint + "/" + username + "/profile").put(body).get(timeout);
 	}
 
-	static WS.Response createTeam(String name) {
+	static WSResponse createTeam(String name) {
 		final JsonNode body = Json.toJson(ImmutableMap.of(
 			"name", name));
-		return WS.url(teamsEndpoint).post(body).get();
+		return WS.url(teamsEndpoint).post(body).get(timeout);
 	}
 
-	static WS.Response getTeam(Long teamId) {
-		return WS.url(teamsEndpoint + "/" + teamId).get().get();
+	static WSResponse getTeam(Long teamId) {
+		return WS.url(teamsEndpoint + "/" + teamId).get().get(timeout);
 	}
 
-	static WS.Response createProject(String name, Long teamId) {
+	static WSResponse createProject(String name, Long teamId) {
 		final JsonNode body = Json.toJson(ImmutableMap.of(
 			"name", name,
 			"description", "The best project in the world",
 			"teamId", teamId));
-		return WS.url(projectsEndpoint).post(body).get();
+		return WS.url(projectsEndpoint).post(body).get(timeout);
 	}
 
-	static WS.Response getProject(Long projectId) {
-		return WS.url(projectsEndpoint + "/" + projectId).get().get();
+	static WSResponse getProject(Long projectId) {
+		return WS.url(projectsEndpoint + "/" + projectId).get().get(timeout);
 	}
 
-	static WS.Response createBacklogItem(String name, Long projectId) {
+	static WSResponse createBacklogItem(String name, Long projectId) {
 		final JsonNode body = Json.toJson(ImmutableMap.builder()
 			.put("name", "As a user I want to have a shiny UI")
 			.put("summary", "modified user story")
@@ -78,31 +79,31 @@ public class AbstractApiTest {
 			.put("storyPoints", 5)
 			.put("priority", "URGENT")
 			.put("projectId", 1L).build());
-		return WS.url(backlogItemsEndpoint).post(body).get();
+		return WS.url(backlogItemsEndpoint).post(body).get(timeout);
 	}
 
-	static WS.Response getBacklogItem(Long backlogItemId) {
-		return WS.url(backlogItemsEndpoint + "/" + backlogItemId).get().get();
+	static WSResponse getBacklogItem(Long backlogItemId) {
+		return WS.url(backlogItemsEndpoint + "/" + backlogItemId).get().get(timeout);
 	}
 
-	static WS.Response getBacklogItemsForProject(Long projectId) {
-		return WS.url(projectsEndpoint + "/" + projectId + "/backlogitems").get().get();
+	static WSResponse getBacklogItemsForProject(Long projectId) {
+		return WS.url(projectsEndpoint + "/" + projectId + "/backlogitems").get().get(timeout);
 	}
 
-	static WS.Response createTask(Long backlogItemId, String name) {
+	static WSResponse createTask(Long backlogItemId, String name) {
 		final JsonNode body = Json.toJson(ImmutableMap.of(
 			"name", name,
 			"description", "What needs to be done",
 			"backlogItemId", backlogItemId));
-		return WS.url(backlogItemsEndpoint + "/" + backlogItemId + "/tasks").post(body).get();
+		return WS.url(backlogItemsEndpoint + "/" + backlogItemId + "/tasks").post(body).get(timeout);
 	}
 
-	static WS.Response getTask(Long backlogItemId, Long taskId) {
-		return WS.url(backlogItemsEndpoint + "/" + backlogItemId + "/tasks/" + taskId).get().get();
+	static WSResponse getTask(Long backlogItemId, Long taskId) {
+		return WS.url(backlogItemsEndpoint + "/" + backlogItemId + "/tasks/" + taskId).get().get(timeout);
 	}
 
-	static WS.Response getTasks(Long backlogItemId) {
-		return WS.url(backlogItemsEndpoint + "/" + backlogItemId + "/tasks").get().get();
+	static WSResponse getTasks(Long backlogItemId) {
+		return WS.url(backlogItemsEndpoint + "/" + backlogItemId + "/tasks").get().get(timeout);
 	}
  
 }

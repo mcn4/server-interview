@@ -1,15 +1,15 @@
 package api;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.*;
 import play.test.*;
 import play.libs.Json;
-import play.libs.WS;
+import play.libs.ws.*;
 
 import static play.test.Helpers.*;
 import static org.fest.assertions.Assertions.*;
 import static org.junit.Assert.*;
 
-import org.codehaus.jackson.JsonNode;
 import com.google.common.collect.*;
 
 import domain.model.Priority;
@@ -22,7 +22,7 @@ public class BacklogItemApiTest extends AbstractApiTest {
 			public void run() {
 				assertThat(createTeam("Team Foo").getStatus()).isEqualTo(CREATED);
 				assertThat(createProject("Todo App 3.0", 1L).getStatus()).isEqualTo(CREATED);
-				final WS.Response createResponse = createBacklogItem("some stuff", 1L);
+				final WSResponse createResponse = createBacklogItem("some stuff", 1L);
 				assertThat(createResponse.getStatus()).isEqualTo(CREATED);
 				final JsonNode json = Json.toJson(ImmutableMap.builder()
 					.put("id", 1L)
@@ -34,7 +34,7 @@ public class BacklogItemApiTest extends AbstractApiTest {
 					.put("status", "ESTIMATED")
 					.put("projectId", 1L).build());
 				assertEquals(json, createResponse.asJson());
-				final WS.Response getResponse = getBacklogItem(1L);
+				final WSResponse getResponse = getBacklogItem(1L);
 				assertThat(getResponse.getStatus()).isEqualTo(OK);
 				assertEquals(json, getResponse.asJson());
 			}
@@ -48,7 +48,7 @@ public class BacklogItemApiTest extends AbstractApiTest {
 				assertThat(createTeam("Team Foo").getStatus()).isEqualTo(CREATED);
 				assertThat(createProject("Todo App 3.0", 1L).getStatus()).isEqualTo(CREATED);
 				assertThat(createBacklogItem("some stuff", 1L).getStatus()).isEqualTo(CREATED);
-				final WS.Response updateResponse = changeSummary(1L, "modified user story");
+				final WSResponse updateResponse = changeSummary(1L, "modified user story");
 				assertThat(updateResponse.getStatus()).isEqualTo(OK);
 				final JsonNode json = Json.toJson(ImmutableMap.builder()
 					.put("id", 1L)
@@ -59,7 +59,7 @@ public class BacklogItemApiTest extends AbstractApiTest {
 					.put("priority", "URGENT")
 					.put("status", "ESTIMATED")
 					.put("projectId", 1L).build());
-				final WS.Response getResponse = getBacklogItem(1L);
+				final WSResponse getResponse = getBacklogItem(1L);
 				assertThat(getResponse.getStatus()).isEqualTo(OK);
 				assertEquals(json, getResponse.asJson());
 			}
@@ -73,7 +73,7 @@ public class BacklogItemApiTest extends AbstractApiTest {
 				assertThat(createTeam("Team Foo").getStatus()).isEqualTo(CREATED);
 				assertThat(createProject("Todo App 3.0", 1L).getStatus()).isEqualTo(CREATED);
 				assertThat(createBacklogItem("some stuff", 1L).getStatus()).isEqualTo(CREATED);
-				final WS.Response updateResponse = changeSummary(1L, "modified user story");
+				final WSResponse updateResponse = changeSummary(1L, "modified user story");
 				assertThat(updateResponse.getStatus()).isEqualTo(OK);
 				final JsonNode json = Json.toJson(ImmutableMap.builder()
 					.put("id", 1L)
@@ -84,7 +84,7 @@ public class BacklogItemApiTest extends AbstractApiTest {
 					.put("priority", "URGENT")
 					.put("status", "ESTIMATED")
 					.put("projectId", 1L).build());
-				final WS.Response getResponse = getBacklogItem(1L);
+				final WSResponse getResponse = getBacklogItem(1L);
 				assertThat(getResponse.getStatus()).isEqualTo(OK);
 				assertEquals(json, getResponse.asJson());
 			}
@@ -98,7 +98,7 @@ public class BacklogItemApiTest extends AbstractApiTest {
 				assertThat(createTeam("Team Foo").getStatus()).isEqualTo(CREATED);
 				assertThat(createProject("Todo App 3.0", 1L).getStatus()).isEqualTo(CREATED);
 				assertThat(createBacklogItem("some stuff", 1L).getStatus()).isEqualTo(CREATED);
-				final WS.Response response = getBacklogItemsForProject(1L);
+				final WSResponse response = getBacklogItemsForProject(1L);
 				assertThat(response.getStatus()).isEqualTo(OK);
 				final JsonNode json = Json.toJson(ImmutableList.of(
 					ImmutableMap.builder()
@@ -123,10 +123,10 @@ public class BacklogItemApiTest extends AbstractApiTest {
 				assertThat(createTeam("Team Foo").getStatus()).isEqualTo(CREATED);
 				assertThat(createProject("Todo App 3.0", 1L).getStatus()).isEqualTo(CREATED);
 				assertThat(createBacklogItem("some stuff", 1L).getStatus()).isEqualTo(CREATED);
-				final WS.Response createResponse = createTask(1L, "set up project");
+				final WSResponse createResponse = createTask(1L, "set up project");
 				assertThat(createResponse.getStatus()).isEqualTo(CREATED);
 				checkTaskJson(createResponse.asJson());
-				final WS.Response getResponse = getTask(1L, 1L);
+				final WSResponse getResponse = getTask(1L, 1L);
 				assertThat(getResponse.getStatus()).isEqualTo(OK);
 				checkTaskJson(getResponse.asJson());
 			}
@@ -141,7 +141,7 @@ public class BacklogItemApiTest extends AbstractApiTest {
 				assertThat(createProject("Todo App 3.0", 1L).getStatus()).isEqualTo(CREATED);
 				assertThat(createBacklogItem("some stuff", 1L).getStatus()).isEqualTo(CREATED);
 				assertThat(createTask(1L, "set up project").getStatus()).isEqualTo(CREATED);
-				final WS.Response response = getTasks(1L);
+				final WSResponse response = getTasks(1L);
 				assertThat(response.getStatus()).isEqualTo(OK);
 				final JsonNode json = response.asJson();
 				assertTrue(json.isArray());
@@ -152,11 +152,11 @@ public class BacklogItemApiTest extends AbstractApiTest {
 	}
 
 	private static void checkTaskJson(JsonNode json) {
-		assertThat(json.path("id").getIntValue()).isEqualTo(1);
-		assertThat(json.path("name").getTextValue()).isEqualTo("set up project");
-		assertThat(json.path("description").getTextValue()).isEqualTo("What needs to be done");
-		assertThat(json.path("backlogItemId").getLongValue()).isEqualTo(1L);
-		assertThat(json.path("githubStatus").getTextValue()).isEqualTo("OPEN");
+		assertThat(json.path("id").intValue()).isEqualTo(1);
+		assertThat(json.path("name").textValue()).isEqualTo("set up project");
+		assertThat(json.path("description").textValue()).isEqualTo("What needs to be done");
+		assertThat(json.path("backlogItemId").longValue()).isEqualTo(1L);
+		assertThat(json.path("githubStatus").textValue()).isEqualTo("OPEN");
 		assertTrue(json.path("githubUrl").isTextual());
 		assertTrue(json.path("githubComments").isArray());
 		assertTrue(json.path("githubComments").path(0).path("login").isTextual());
@@ -164,14 +164,14 @@ public class BacklogItemApiTest extends AbstractApiTest {
 		assertTrue(json.path("githubComments").path(0).path("url").isTextual());
 	}
 
-	private static WS.Response changeSummary(Long backlogItemId, String newSummary) {
+	private static WSResponse changeSummary(Long backlogItemId, String newSummary) {
 		final JsonNode body = Json.toJson(ImmutableMap.of("summary", newSummary));
-		return WS.url(backlogItemsEndpoint + "/" + backlogItemId + "/summary").put(body).get();
+		return WS.url(backlogItemsEndpoint + "/" + backlogItemId + "/summary").put(body).get(timeout);
 	}
 
-	private static WS.Response prioritize(Long backlogItemId, Priority priority) {
+	private static WSResponse prioritize(Long backlogItemId, Priority priority) {
 		final JsonNode body = Json.toJson(ImmutableMap.of("priority", priority));
-		return WS.url(backlogItemsEndpoint + "/" + backlogItemId + "/priority").put(body).get();
+		return WS.url(backlogItemsEndpoint + "/" + backlogItemId + "/priority").put(body).get(timeout);
 	}
 
 }

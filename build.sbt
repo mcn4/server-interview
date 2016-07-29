@@ -16,4 +16,8 @@ libraryDependencies ++= Seq(
     javaEbean
   )
 
+libraryDependencies ++= Seq(
+    javaWs
+) map (_ % "test")
+
 lazy val root = (project in file(".")).enablePlugins(PlayJava)

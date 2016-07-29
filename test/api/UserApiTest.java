@@ -3,13 +3,13 @@ package api;
 import org.junit.*;
 import play.test.*;
 import play.libs.Json;
-import play.libs.WS;
+import play.libs.ws.*;
 
 import static play.test.Helpers.*;
 import static org.fest.assertions.Assertions.*;
 import static org.junit.Assert.*;
 
-import org.codehaus.jackson.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.*;
 
 public class UserApiTest extends AbstractApiTest {
@@ -19,7 +19,7 @@ public class UserApiTest extends AbstractApiTest {
 		running(testServer(3333), new Runnable() {
 			public void run() {
 				assertThat(createUser("johndoe").getStatus()).isEqualTo(CREATED);
-				WS.Response resp = getUserProfile("johndoe");
+				WSResponse resp = getUserProfile("johndoe");
 				assertThat(resp.getStatus()).isEqualTo(OK);
 				assertEquals(resp.asJson(), Json.toJson(ImmutableMap.of(
 					"email", "john@example.com",
@@ -37,7 +37,7 @@ public class UserApiTest extends AbstractApiTest {
 			public void run() {
 				assertThat(createUser("johndoe").getStatus()).isEqualTo(CREATED);
 				assertThat(updateProfile("johndoe", "johnny@hotmail.com").getStatus()).isEqualTo(OK);
-				assertThat(getUserProfile("johndoe").asJson().path("email").getTextValue())
+				assertThat(getUserProfile("johndoe").asJson().path("email").textValue())
 					.isEqualTo("johnny@hotmail.com");
 			}
 		});
