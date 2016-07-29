@@ -7,7 +7,7 @@ import play.data.Form;
 import play.libs.Json;
 import play.db.ebean.Transactional;
 
-import org.codehaus.jackson.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import com.google.common.collect.*;
 import com.google.common.base.Optional;
