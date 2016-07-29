@@ -34,7 +34,7 @@ public class Team extends Model {
 
     public final void add() throws TeamNameAlreadyTakenException {
         if (forName(name).isPresent()) {
-            throw new UserNameAlreadyTakenException("Team name " + name + " is already taken");
+            throw new TeamNameAlreadyTakenException("Team name " + name + " is already taken");
         } else {
             save();
         }
