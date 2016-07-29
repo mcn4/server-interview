@@ -5,13 +5,12 @@ import play.data.format.Formats;
 import play.data.validation.Constraints;
 import play.db.ebean.Model;
 
-import javax.persistence.Embedded;
+import javax.persistence.Entity;
 import javax.persistence.Id;
-import javax.validation.Valid;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
+@Entity
 public class Team extends Model {
     @Id
     public long id;
@@ -23,10 +22,14 @@ public class Team extends Model {
     @Constraints.Required
     public Set<User> members = new HashSet<>();
 
-    public final static Finder<String, Team> find = new Finder<>(String.class, Team.class);
+    public final static Finder<Long, Team> find = new Finder<>(Long.class, Team.class);
+
+    public static Optional<Team> forId(final Long id) {
+        return Optional.fromNullable(find.byId(id));
+    }
 
     public static Optional<Team> forName(final String name) {
-        return Optional.fromNullable(find.byId(name));
+        return Optional.fromNullable(find.where().eq("name", name).findUnique());
     }
 
     public final void add() throws TeamNameAlreadyTakenException {

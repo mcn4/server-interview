@@ -39,7 +39,7 @@ object Teams extends Controller {
         case TeamName(name) =>
           (for {
             _ <- Future(createNewTeamByName(name))
-            json <- teamByNameJson(name)
+            json <- teamJson(forName(name))
           } yield Created(json))
           .recover {
             case e @ (_: TeamNameAlreadyTakenException | _: NoSuchElementException) =>
@@ -103,8 +103,14 @@ object Teams extends Controller {
     * {"id": 1, "name": "Team Foo", "members": 0}
     *
     */
-  def getTeam(teamId: Long) = {
-    TODO
+  def getTeam(teamId: Long) = Action.async {
+    (for {
+      json <- teamJson(forId(teamId))
+    } yield Ok(json))
+      .recover {
+        case e: NoSuchElementException => BadRequest(Json.obj("id" -> e.getMessage))
+        case NonFatal(e) => InternalServerError(Json.obj("error" -> e.toString))
+      }
   }
 
   /**
@@ -127,14 +133,16 @@ object Teams extends Controller {
     )
   }
 
-  private[api] def teamByNameJson(name: String): Future[JsValue] =
-    forName(name).map(Json.toJson(_)(teamWrites))
+  private[api] def teamJson(tf: Future[Team]): Future[JsValue] =
+    tf.map(Json.toJson(_)(teamWrites))
+
+  private[api] def forId(id: Long): Future[Team] =
+    Future(domain.model.Team.forId(id)).map(getFromOptional(s"No team found with id $id"))
 
   private[api] def forName(name: String): Future[Team] =
-    Future(domain.model.Team.forName(name))
-      .map {
-        case present if present.isPresent => present.get
-        case _ => throw new NoSuchElementException(s"No team found with name $name")
-      }
+    Future(domain.model.Team.forName(name)).map(getFromOptional(s"No team found with name $name"))
+
+  private[api] def getFromOptional(errMsg: String)(ot: com.google.common.base.Optional[Team]): Team =
+    if (ot.isPresent) ot.get else throw new NoSuchElementException(errMsg)
 
 }
