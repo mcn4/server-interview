@@ -59,4 +59,29 @@ public class TeamApiTest {
         });
 
     }
+
+    @Test
+    public void canRemoveMemberFromTeam() {
+        running(testServer(3333), new Runnable() {
+            public void run() {
+                assertThat(createUser(memberName).getStatus()).isEqualTo(CREATED);
+                final String memberName2 = "somemember";
+                assertThat(createUser(memberName2).getStatus()).isEqualTo(CREATED);
+                assertThat(createTeam(teamName).getStatus()).isEqualTo(CREATED);
+                WS.url(teamsEndpoint + "/" + teamId + "/member")
+                    .post(Json.toJson(ImmutableMap.of("identity", memberName))).get(timeout);
+                WS.url(teamsEndpoint + "/" + teamId + "/member")
+                    .post(Json.toJson(ImmutableMap.of("identity", memberName2))).get(timeout);
+                final WSResponse resp =
+                        WS.url(teamsEndpoint + "/" + teamId + "/members/" + memberName2).delete().get(timeout);
+                assertThat(resp.getStatus()).isEqualTo(OK);
+                assertEquals(Json.toJson(ImmutableList.of(ImmutableMap.of(
+                        "identity", memberName,
+                        "email", "john@example.com",
+                        "name", "John Doe"
+                ))), resp.asJson());
+            }
+        });
+
+    }
 }
