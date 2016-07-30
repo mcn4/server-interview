@@ -8,6 +8,7 @@ import play.api.libs.json.{JsNumber, JsValue, Json, Writes}
 import play.api.mvc.{Action, Controller, Request, Result}
 import play.db.ebean.Transactional
 
+import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.control.NonFatal
@@ -157,8 +158,30 @@ object Teams extends Controller {
     * [] (the new list of team members, in this example an empty JSON array
     *
     */
-  def removeMember(teamId: Long, memberId: String) = {
-    TODO
+  def removeMember(teamId: Long, memberId: String) = Action.async {
+    (for {
+      _ <- Future(removeMemberFromTeam(teamId, memberId))
+      json <- membersJson(forId(teamId))
+    } yield Ok(json))
+      .recover {
+        case e: NoSuchElementException => BadRequest(Json.obj("error" -> e.getMessage))
+        case NonFatal(e) => InternalServerError(Json.obj("error" -> e.toString))
+      }
+  }
+
+  @Transactional
+  @throws[NoSuchElementException]
+  def removeMemberFromTeam(teamId: Long, memberId: String) = {
+    val team: Team = getTeamByIdFromOpt(teamId)(Team.forId(teamId))
+    @tailrec
+    def seekAndDestroy(jit: java.util.Iterator[User]): Unit = {
+      if (jit.hasNext) {
+        if (jit.next().username == memberId) jit.remove()
+        else seekAndDestroy(jit)
+      }
+    }
+    seekAndDestroy(team.members.iterator)
+    team.update()
   }
 
   private[api] val teamWrites = new Writes[Team] {
