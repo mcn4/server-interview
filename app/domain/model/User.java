@@ -8,6 +8,7 @@ import com.google.common.base.Optional;
 
 import javax.persistence.*;
 import javax.validation.*;
+import java.util.Objects;
 
 @Entity
 public class User extends Model {
@@ -64,4 +65,17 @@ public class User extends Model {
 		public Integer age;
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+		if (!super.equals(o)) return false;
+		User user = (User) o;
+		return Objects.equals(username, user.username);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(super.hashCode(), username);
+	}
 }

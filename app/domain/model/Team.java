@@ -18,7 +18,6 @@ public class Team extends Model {
     @Formats.NonEmpty
     public String name;
 
-    @Constraints.Required
     @ManyToMany
     @JoinTable(
         name = "teamMembers",

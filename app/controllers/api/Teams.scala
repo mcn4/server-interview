@@ -4,8 +4,10 @@ import com.google.common.base.Optional
 import domain.model._
 import play.api.data._
 import play.api.data.Forms._
-import play.api.libs.json.{JsNumber, JsValue, Json, Writes}
-import play.api.mvc.{Action, Controller, Request, Result}
+import play.api.libs.json._
+import play.api.mvc._
+import play.data.format.Formats
+import play.data.validation.Constraints
 import play.db.ebean.Transactional
 
 import scala.annotation.tailrec
@@ -14,13 +16,20 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 object Teams extends Controller {
-  private[api] case class TeamName(name: String)
+  private[api] case class TeamName(@Constraints.Required
+                                   @Formats.NonEmpty
+                                   name: String)
   private[api] val teamNameForm: Form[TeamName] =
     Form(mapping("name" -> nonEmptyText)(TeamName.apply)(TeamName.unapply))
 
-  private[api] case class MemberId(memberId: String)
+  private[api] case class MemberId(@Constraints.Required
+                                   @Formats.NonEmpty
+                                   memberId: String)
   private[api] val memberIdForm: Form[MemberId] =
     Form(mapping("identity" -> nonEmptyText)(MemberId.apply)(MemberId.unapply))
+
+  private[api] def onFormErrors(formWithErrors: Form[_]) =
+    Future.successful(BadRequest(formWithErrors.errorsAsJson))
 
   /**
     * Creates a new Team
@@ -36,22 +45,18 @@ object Teams extends Controller {
     * This is one of the required endpoints.
     *
     */
-  def createTeam() = Action.async(parse.json) { implicit rq: Request[JsValue] =>
-    teamNameForm.bindFromRequest().fold(
-      formWithErrors => {
-        Future.successful(BadRequest(formWithErrors.errorsAsJson))
-      },
-      {
-        case TeamName(name) =>
-          (for {
-            _ <- Future(createNewTeamByName(name))
-            json <- teamJson(forName(name))
-          } yield Created(json))
-          .recover {
-            case e @ (_: TeamNameAlreadyTakenException | _: NoSuchElementException) =>
-              BadRequest(Json.obj("name" -> e.getMessage))
-            case NonFatal(e) => InternalServerError(Json.obj("error" -> e.toString))
-          }
+  def createTeam() = Action.async(parse.json) { implicit rq =>
+    teamNameForm.bindFromRequest().fold(hasErrors = onFormErrors,
+      success = { case TeamName(name) =>
+        (for {
+          _ <- Future(createNewTeamByName(name))
+          json <- teamJson(forName(name))
+        } yield Created(json))
+        .recover {
+          case e @ (_: TeamNameAlreadyTakenException | _: NoSuchElementException) =>
+            BadRequest(Json.obj("name" -> e.getMessage))
+          case NonFatal(e) => InternalServerError(Json.obj("error" -> e.toString))
+        }
       }
     )
   }
@@ -82,32 +87,29 @@ object Teams extends Controller {
     * This is one of the required endpoints.
     *
     */
-  def addMember(teamId: Long) = Action.async(parse.json) { implicit rq: Request[JsValue] =>
-    memberIdForm.bindFromRequest().fold(
-      formWithErrors => {
-        Future.successful(BadRequest(formWithErrors.errorsAsJson))
-      },
-      {
-        case MemberId(memberId) =>
-          (for {
-            _ <- Future(addMemberToTeam(teamId, memberId))
-            json <- membersJson(forId(teamId))
-          } yield Created(json))
-            .recover {
-              case e: NoSuchElementException => BadRequest(Json.obj("error" -> e.getMessage))
-              case NonFatal(e) => InternalServerError(Json.obj("error" -> e.toString))
-            }
+  def addMember(teamId: Long) = Action.async(parse.json) { implicit rq =>
+    memberIdForm.bindFromRequest().fold(hasErrors = onFormErrors,
+      success = { case MemberId(memberId) =>
+        (for {
+          added <- Future(addMemberToTeam(teamId, memberId))
+          json <- membersJson(forId(teamId))
+        } yield if (added) Created(json) else Ok(json))
+          .recover {
+            case e: NoSuchElementException => BadRequest(Json.obj("error" -> e.getMessage))
+            case NonFatal(e) => InternalServerError(Json.obj("error" -> e.toString))
+          }
       }
     )
   }
 
   @Transactional
   @throws[NoSuchElementException]
-  def addMemberToTeam(teamId: Long, memberId: String) = {
+  def addMemberToTeam(teamId: Long, memberId: String): Boolean = {
     val team: Team = getTeamByIdFromOpt(teamId)(Team.forId(teamId))
     val newMember = getFromOpt(s"User with id $memberId cannot be found")(User.forId(memberId))
-    team.members.add(newMember)
-    team.update()
+    val added = team.members.add(newMember)
+    if (added) team.update()
+    added
   }
 
   /**
@@ -174,18 +176,19 @@ object Teams extends Controller {
   def removeMemberFromTeam(teamId: Long, memberId: String) = {
     val team: Team = getTeamByIdFromOpt(teamId)(Team.forId(teamId))
     @tailrec
-    def seekAndDestroy(jit: java.util.Iterator[User]): Unit = {
+    def seekAndDestroy(jit: java.util.Iterator[User]): Boolean = {
       if (jit.hasNext) {
-        if (jit.next().username == memberId) jit.remove()
-        else seekAndDestroy(jit)
-      }
+        if (jit.next().username == memberId) {
+          jit.remove()
+          true
+        } else seekAndDestroy(jit)
+      } else false
     }
-    seekAndDestroy(team.members.iterator)
-    team.update()
+    if (seekAndDestroy(team.members.iterator)) team.update()
   }
 
   private[api] val teamWrites = new Writes[Team] {
-    def writes(t: Team): JsValue = Json.obj(
+    def writes(t: Team) = Json.obj(
       "id" -> t.id,
       "name" -> t.name,
       "members" -> t.members.size
@@ -193,7 +196,7 @@ object Teams extends Controller {
   }
 
   private[api] val memberWrites = new Writes[User] {
-    def writes(u: User): JsValue = Json.obj(
+    def writes(u: User) = Json.obj(
       "identity" -> u.username,
       "email" -> u.getProfile.email,
       "name" -> s"${u.getProfile.firstName} ${u.getProfile.lastName}"
